@@ -1,163 +1,41 @@
 #include <mpi.h>
 #include <stdio.h>
-#include <stdlib.h>
 
 int main(int argc, char** argv) {
     MPI_Init(&argc, &argv);
     
-    int world_rank, world_size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+    int rank, size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
     
-    // Check if we have exactly 8 processes
-    if (world_size != 8) {
-        if (world_rank == 0) {
-            printf("Program must be run with 8 processes!\n");
-            printf("Use: mpirun -np 8 ./program_name\n");
-        }
-        MPI_Finalize();
-        return 1;
-    }
+    // Определяем соседей в кольце
+    int left = (rank - 1 + size) % size;
+    int right = (rank + 1) % size;
     
-    // Define neighbors in ring topology
-    int left_neighbor = (world_rank - 1 + world_size) % world_size;
-    int right_neighbor = (world_rank + 1) % world_size;
-    
-    // Data for sending
-    int send_data = world_rank * 100;
-    int recv_data_left, recv_data_right;
+    int send_data = rank * 100;  // Данные для отправки
+    int recv_data;               // Данные для приема
     
     MPI_Status status;
     
-    // Synchronization before start
+    // Синхронизация
     MPI_Barrier(MPI_COMM_WORLD);
     
-    if (world_rank == 0) {
-        printf("=== STARTING DATA TRANSFER IN RING ===\n");
-    }
-    
-    // Clockwise transfer (to the right)
-    if (world_rank == 0) {
-        printf("\n=== CLOCKWISE TRANSFER ===\n");
-    }
-    
-    MPI_Barrier(MPI_COMM_WORLD);
-    
-    // Process 0 starts the transfer
-    if (world_rank == 0) {
-        printf("Process %d sends data %d to process %d\n", 
-               world_rank, send_data, right_neighbor);
+    if (rank == 0) {
+        // Процесс 0 начинает пересылку
+        printf("Process %d sends %d to %d\n", rank, send_data, right);
+        MPI_Send(&send_data, 1, MPI_INT, right, 0, MPI_COMM_WORLD);
         
-        MPI_Send(&send_data, 1, MPI_INT, right_neighbor, 0, MPI_COMM_WORLD);
+        MPI_Recv(&recv_data, 1, MPI_INT, left, 0, MPI_COMM_WORLD, &status);
+        printf("Process %d received %d from %d\n", rank, recv_data, left);
+    } else {
+        // Остальные процессы принимают и пересылают
+        MPI_Recv(&recv_data, 1, MPI_INT, left, 0, MPI_COMM_WORLD, &status);
+        printf("Process %d received %d from %d\n", rank, recv_data, left);
         
-        MPI_Recv(&recv_data_left, 1, MPI_INT, left_neighbor, 0, MPI_COMM_WORLD, &status);
+        send_data = recv_data + rank;  // Модифицируем данные
         
-        printf("Process %d received data %d from process %d\n", 
-               world_rank, recv_data_left, left_neighbor);
-    } 
-    else {
-        MPI_Recv(&recv_data_left, 1, MPI_INT, left_neighbor, 0, MPI_COMM_WORLD, &status);
-        
-        printf("Process %d received data %d from process %d\n", 
-               world_rank, recv_data_left, left_neighbor);
-        
-        // Modify data before sending to next process
-        send_data = recv_data_left + world_rank;
-        
-        printf("Process %d sends data %d to process %d\n", 
-               world_rank, send_data, right_neighbor);
-        
-        MPI_Send(&send_data, 1, MPI_INT, right_neighbor, 0, MPI_COMM_WORLD);
-    }
-    
-    // Wait for completion of first transfer
-    MPI_Barrier(MPI_COMM_WORLD);
-    
-    // Counter-clockwise transfer (to the left)
-    if (world_rank == 0) {
-        printf("\n=== COUNTER-CLOCKWISE TRANSFER ===\n");
-    }
-    
-    MPI_Barrier(MPI_COMM_WORLD);
-    
-    // Reset data for second transfer
-    send_data = world_rank * 100 + 50;
-    
-    // Process 0 starts transfer in reverse direction
-    if (world_rank == 0) {
-        printf("Process %d sends data %d to process %d\n", 
-               world_rank, send_data, left_neighbor);
-        
-        MPI_Send(&send_data, 1, MPI_INT, left_neighbor, 1, MPI_COMM_WORLD);
-        
-        MPI_Recv(&recv_data_right, 1, MPI_INT, right_neighbor, 1, MPI_COMM_WORLD, &status);
-        
-        printf("Process %d received data %d from process %d\n", 
-               world_rank, recv_data_right, right_neighbor);
-    } 
-    else {
-        MPI_Recv(&recv_data_right, 1, MPI_INT, right_neighbor, 1, MPI_COMM_WORLD, &status);
-        
-        printf("Process %d received data %d from process %d\n", 
-               world_rank, recv_data_right, right_neighbor);
-        
-        // Modify data before sending to previous process
-        send_data = recv_data_right + world_rank;
-        
-        printf("Process %d sends data %d to process %d\n", 
-               world_rank, send_data, left_neighbor);
-        
-        MPI_Send(&send_data, 1, MPI_INT, left_neighbor, 1, MPI_COMM_WORLD);
-    }
-    
-    // Wait for completion of second transfer
-    MPI_Barrier(MPI_COMM_WORLD);
-    
-    // Additional example: array data transfer
-    if (world_rank == 0) {
-        printf("\n=== ARRAY DATA TRANSFER ===\n");
-    }
-    
-    MPI_Barrier(MPI_COMM_WORLD);
-    
-    const int ARRAY_SIZE = 3;
-    int send_array[ARRAY_SIZE];
-    int recv_array[ARRAY_SIZE];
-    
-    // Initialize array for sending
-    for (int i = 0; i < ARRAY_SIZE; i++) {
-        send_array[i] = world_rank * 10 + i;
-    }
-    
-    // Use non-blocking operations for array transfer
-    MPI_Request send_request, recv_request;
-    
-    printf("Process %d sends array [", world_rank);
-    for (int i = 0; i < ARRAY_SIZE; i++) {
-        printf("%d", send_array[i]);
-        if (i < ARRAY_SIZE - 1) printf(", ");
-    }
-    printf("] to process %d\n", right_neighbor);
-    
-    MPI_Isend(send_array, ARRAY_SIZE, MPI_INT, right_neighbor, 2, MPI_COMM_WORLD, &send_request);
-    MPI_Irecv(recv_array, ARRAY_SIZE, MPI_INT, left_neighbor, 2, MPI_COMM_WORLD, &recv_request);
-    
-    // Wait for operations to complete
-    MPI_Wait(&send_request, &status);
-    MPI_Wait(&recv_request, &status);
-    
-    printf("Process %d received array [", world_rank);
-    for (int i = 0; i < ARRAY_SIZE; i++) {
-        printf("%d", recv_array[i]);
-        if (i < ARRAY_SIZE - 1) printf(", ");
-    }
-    printf("] from process %d\n", left_neighbor);
-    
-    // Final synchronization
-    MPI_Barrier(MPI_COMM_WORLD);
-    
-    if (world_rank == 0) {
-        printf("\n=== DATA TRANSFER COMPLETED ===\n");
+        printf("Process %d sends %d to %d\n", rank, send_data, right);
+        MPI_Send(&send_data, 1, MPI_INT, right, 0, MPI_COMM_WORLD);
     }
     
     MPI_Finalize();
