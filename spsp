@@ -1,9 +1,6 @@
 #include <mpi.h>
-#include <iostream>
-#include <cstring>
-#include <unistd.h>
-
-using namespace std;
+#include <stdio.h>
+#include <stdlib.h>
 
 int main(int argc, char** argv) {
     MPI_Init(&argc, &argv);
@@ -15,8 +12,8 @@ int main(int argc, char** argv) {
     // Проверяем, что у нас 8 процессов
     if (world_size != 8) {
         if (world_rank == 0) {
-            cout << "Программа должна быть запущена с 8 процессами!" << endl;
-            cout << "Используйте: mpirun -np 8 ./program_name" << endl;
+            printf("Программа должна быть запущена с 8 процессами!\n");
+            printf("Используйте: mpirun -np 8 ./program_name\n");
         }
         MPI_Finalize();
         return 1;
@@ -27,7 +24,7 @@ int main(int argc, char** argv) {
     int right_neighbor = (world_rank + 1) % world_size;
     
     // Данные для отправки
-    int send_data = world_rank * 100;  // Уникальные данные для каждого процесса
+    int send_data = world_rank * 100;
     int recv_data_left, recv_data_right;
     
     MPI_Status status;
@@ -36,39 +33,39 @@ int main(int argc, char** argv) {
     MPI_Barrier(MPI_COMM_WORLD);
     
     if (world_rank == 0) {
-        cout << "=== НАЧАЛО ПЕРЕСЫЛКИ ДАННЫХ В КОЛЬЦЕ ===" << endl;
+        printf("=== НАЧАЛО ПЕРЕСЫЛКИ ДАННЫХ В КОЛЬЦЕ ===\n");
     }
     
     // Пересылка данных по часовой стрелке (вправо)
     if (world_rank == 0) {
-        cout << endl << "=== ПЕРЕСЫЛКА ПО ЧАСОВОЙ СТРЕЛКЕ ===" << endl;
+        printf("\n=== ПЕРЕСЫЛКА ПО ЧАСОВОЙ СТРЕЛКЕ ===\n");
     }
     
     MPI_Barrier(MPI_COMM_WORLD);
     
     // Процесс 0 начинает пересылку
     if (world_rank == 0) {
-        cout << "Процесс " << world_rank << " отправляет данные " << send_data 
-                  << " процессу " << right_neighbor << endl;
+        printf("Процесс %d отправляет данные %d процессу %d\n", 
+               world_rank, send_data, right_neighbor);
         
         MPI_Send(&send_data, 1, MPI_INT, right_neighbor, 0, MPI_COMM_WORLD);
         
         MPI_Recv(&recv_data_left, 1, MPI_INT, left_neighbor, 0, MPI_COMM_WORLD, &status);
         
-        cout << "Процесс " << world_rank << " получил данные " << recv_data_left 
-                  << " от процесса " << left_neighbor << endl;
+        printf("Процесс %d получил данные %d от процесса %d\n", 
+               world_rank, recv_data_left, left_neighbor);
     } 
     else {
         MPI_Recv(&recv_data_left, 1, MPI_INT, left_neighbor, 0, MPI_COMM_WORLD, &status);
         
-        cout << "Процесс " << world_rank << " получил данные " << recv_data_left 
-                  << " от процесса " << left_neighbor << endl;
+        printf("Процесс %d получил данные %d от процесса %d\n", 
+               world_rank, recv_data_left, left_neighbor);
         
         // Модифицируем данные перед отправкой следующему процессу
         send_data = recv_data_left + world_rank;
         
-        cout << "Процесс " << world_rank << " отправляет данные " << send_data 
-                  << " процессу " << right_neighbor << endl;
+        printf("Процесс %d отправляет данные %d процессу %d\n", 
+               world_rank, send_data, right_neighbor);
         
         MPI_Send(&send_data, 1, MPI_INT, right_neighbor, 0, MPI_COMM_WORLD);
     }
@@ -78,37 +75,37 @@ int main(int argc, char** argv) {
     
     // Пересылка данных против часовой стрелки (влево)
     if (world_rank == 0) {
-        cout << endl << "=== ПЕРЕСЫЛКА ПРОТИВ ЧАСОВОЙ СТРЕЛКИ ===" << endl;
+        printf("\n=== ПЕРЕСЫЛКА ПРОТИВ ЧАСОВОЙ СТРЕЛКИ ===\n");
     }
     
     MPI_Barrier(MPI_COMM_WORLD);
     
     // Сбрасываем данные для второй пересылки
-    send_data = world_rank * 100 + 50;  // Новые уникальные данные
+    send_data = world_rank * 100 + 50;
     
     // Процесс 0 начинает пересылку в обратном направлении
     if (world_rank == 0) {
-        cout << "Процесс " << world_rank << " отправляет данные " << send_data 
-                  << " процессу " << left_neighbor << endl;
+        printf("Процесс %d отправляет данные %d процессу %d\n", 
+               world_rank, send_data, left_neighbor);
         
         MPI_Send(&send_data, 1, MPI_INT, left_neighbor, 1, MPI_COMM_WORLD);
         
         MPI_Recv(&recv_data_right, 1, MPI_INT, right_neighbor, 1, MPI_COMM_WORLD, &status);
         
-        cout << "Процесс " << world_rank << " получил данные " << recv_data_right 
-                  << " от процесса " << right_neighbor << endl;
+        printf("Процесс %d получил данные %d от процесса %d\n", 
+               world_rank, recv_data_right, right_neighbor);
     } 
     else {
         MPI_Recv(&recv_data_right, 1, MPI_INT, right_neighbor, 1, MPI_COMM_WORLD, &status);
         
-        cout << "Процесс " << world_rank << " получил данные " << recv_data_right 
-                  << " от процесса " << right_neighbor << endl;
+        printf("Процесс %d получил данные %d от процесса %d\n", 
+               world_rank, recv_data_right, right_neighbor);
         
         // Модифицируем данные перед отправкой предыдущему процессу
         send_data = recv_data_right + world_rank;
         
-        cout << "Процесс " << world_rank << " отправляет данные " << send_data 
-                  << " процессу " << left_neighbor << endl;
+        printf("Процесс %d отправляет данные %d процессу %d\n", 
+               world_rank, send_data, left_neighbor);
         
         MPI_Send(&send_data, 1, MPI_INT, left_neighbor, 1, MPI_COMM_WORLD);
     }
@@ -118,7 +115,7 @@ int main(int argc, char** argv) {
     
     // Дополнительный пример: пересылка массива данных
     if (world_rank == 0) {
-        cout << endl << "=== ПЕРЕСЫЛКА МАССИВА ДАННЫХ ===" << endl;
+        printf("\n=== ПЕРЕСЫЛКА МАССИВА ДАННЫХ ===\n");
     }
     
     MPI_Barrier(MPI_COMM_WORLD);
@@ -135,12 +132,12 @@ int main(int argc, char** argv) {
     // Используем неблокирующие операции для пересылки массива
     MPI_Request send_request, recv_request;
     
-    cout << "Процесс " << world_rank << " отправляет массив [";
+    printf("Процесс %d отправляет массив [", world_rank);
     for (int i = 0; i < ARRAY_SIZE; i++) {
-        cout << send_array[i];
-        if (i < ARRAY_SIZE - 1) cout << ", ";
+        printf("%d", send_array[i]);
+        if (i < ARRAY_SIZE - 1) printf(", ");
     }
-    cout << "] процессу " << right_neighbor << endl;
+    printf("] процессу %d\n", right_neighbor);
     
     MPI_Isend(send_array, ARRAY_SIZE, MPI_INT, right_neighbor, 2, MPI_COMM_WORLD, &send_request);
     MPI_Irecv(recv_array, ARRAY_SIZE, MPI_INT, left_neighbor, 2, MPI_COMM_WORLD, &recv_request);
@@ -149,18 +146,18 @@ int main(int argc, char** argv) {
     MPI_Wait(&send_request, &status);
     MPI_Wait(&recv_request, &status);
     
-    cout << "Процесс " << world_rank << " получил массив [";
+    printf("Процесс %d получил массив [", world_rank);
     for (int i = 0; i < ARRAY_SIZE; i++) {
-        cout << recv_array[i];
-        if (i < ARRAY_SIZE - 1) cout << ", ";
+        printf("%d", recv_array[i]);
+        if (i < ARRAY_SIZE - 1) printf(", ");
     }
-    cout << "] от процесса " << left_neighbor << endl;
+    printf("] от процесса %d\n", left_neighbor);
     
     // Финальная синхронизация
     MPI_Barrier(MPI_COMM_WORLD);
     
     if (world_rank == 0) {
-        cout << endl << "=== ПЕРЕСЫЛКА ДАННЫХ ЗАВЕРШЕНА ===" << endl;
+        printf("\n=== ПЕРЕСЫЛКА ДАННЫХ ЗАВЕРШЕНА ===\n");
     }
     
     MPI_Finalize();
